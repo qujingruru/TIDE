@@ -1,0 +1,108 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tide-dialogue"
+version = "0.1.0"
+description = "Turn-level Information-theoretic Dialogue Evaluation"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Jingru Qu", email = "qujingru@cuhk.edu.cn" },
+  { name = "Ling Dai", email = "dailing@nju.edu.cn" },
+]
+keywords = [
+  "dialogue analysis",
+  "information theory",
+  "creative thinking",
+  "educational measurement",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = [
+  "jieba==0.42.1",
+  "numpy>=1.26,<3",
+  "omegaconf>=2.3,<3",
+  "pandas>=2.1,<3",
+  "pyyaml>=6,<7",
+]
+
+[project.optional-dependencies]
+models = [
+  "sentence-transformers>=3.4,<6",
+  "torch>=2.2,<3",
+  "transformers>=4.45,<5",
+]
+analysis = [
+  "matplotlib>=3.8,<4",
+  "scipy>=1.12,<2",
+  "statsmodels>=0.14,<1",
+]
+
+[dependency-groups]
+dev = [
+  "build>=1.2,<2",
+  "matplotlib>=3.8,<4",
+  "pip-audit>=2.7,<3",
+  "pyright>=1.1.390,<2",
+  "pytest>=8.3,<10",
+  "pytest-cov>=6,<8",
+  "ruff>=0.9,<1",
+  "scipy>=1.12,<2",
+  "statsmodels>=0.14,<1",
+]
+
+[project.scripts]
+tide = "tide.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/qujingruru/TIDE"
+Repository = "https://github.com/qujingruru/TIDE"
+Issues = "https://github.com/qujingruru/TIDE/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tide"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["tide"]
+omit = [
+  "src/tide/__main__.py",
+  "src/tide/backends.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 80
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "if __name__ == .__main__.:",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+allowed-confusables = ["！", "？", "；"]
+
+[tool.pyright]
+include = ["src", "tests", "scripts"]
+pythonVersion = "3.10"
+typeCheckingMode = "standard"

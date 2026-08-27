@@ -1,0 +1,28 @@
+# TIDE configuration. Model inference is local and no generative API is called.
+seed: 42
+
+models:
+  language_model:
+    name: Qwen/Qwen2.5-1.5B
+    revision: 8faed761d45a263340a0528343f099c05c9a4323
+  embedding_model:
+    name: BAAI/bge-base-zh-v1.5
+    revision: f03589ceff5aac7111bd60cfc7d497ca17ecac65
+
+surprisal:
+  max_context_tokens: 512
+
+mattr_window: 10
+
+columns:
+  dialogue_id: dialogue_id
+  turn_id: turn_id
+  turn: turn
+  speaker: speaker
+  text: text
+
+runtime:
+  device: auto
+  embedding_batch_size: 32
+  local_files_only: false
+  context_template: "{speaker}: {text}\n"

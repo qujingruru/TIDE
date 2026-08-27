@@ -1,0 +1,149 @@
+<title>TIDE Design Framework</title>
+<style>
+  :root {
+    --ink: #1F3A57;
+    --accent: #33608C;
+    --accent-soft: #EAF1F8;
+    --hairline: #C9D4E0;
+    --muted: #5A6B7D;
+    --red: #B04A3A;
+    --paper: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    font-family: "Times New Roman", "STIXGeneral", "Nimbus Roman", serif;
+    color: var(--ink);
+  }
+  .canvas {
+    width: 1480px;
+    margin: 40px auto;
+    padding: 56px 64px 48px;
+    background: var(--paper);
+  }
+  .eyebrow {
+    font-size: 20px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-size: 40px;
+    font-weight: normal;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .subtitle {
+    font-size: 21px;
+    color: var(--muted);
+    margin-bottom: 44px;
+    font-style: italic;
+  }
+  .layers {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+  .layer {
+    flex: 1;
+    border: 1.5px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 28px 26px 24px;
+    display: flex;
+    flex-direction: column;
+  }
+  .layer .no {
+    font-size: 17px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .layer h2 {
+    font-size: 26px;
+    font-weight: normal;
+    margin: 0 0 6px;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+  .layer .role {
+    font-size: 19px;
+    font-style: italic;
+    color: var(--red);
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .layer ul {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  .layer ul li { margin-bottom: 6px; }
+  .arrow {
+    align-self: center;
+    padding: 0 14px;
+    font-size: 34px;
+    color: var(--accent);
+    user-select: none;
+  }
+  .footer {
+    margin-top: 36px;
+    padding-top: 18px;
+    border-top: 1px solid var(--hairline);
+    font-size: 19px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .footer strong { color: var(--accent); font-weight: normal; }
+</style>
+
+<div class="canvas">
+  <div class="eyebrow">A Design Framework</div>
+  <h1>Information-Theoretic Measurement of Thinking in Dialogue</h1>
+  <div class="subtitle">Three layers, from construct to metric, from text to number, from number to valid inference</div>
+
+  <div class="layers">
+    <div class="layer">
+      <div class="no">Layer 1</div>
+      <h2>Construct-to-metric mapping</h2>
+      <div class="role">What to measure, with which metric</div>
+      <ul>
+        <li>Fluency &rarr; lexical entropy, MATTR</li>
+        <li>Originality &rarr; surprisal, self-referential novelty</li>
+        <li>Flexibility &rarr; semantic distance to self</li>
+        <li>Engagement &rarr; semantic distance to partner</li>
+        <li>Process dynamics &rarr; trajectory features</li>
+      </ul>
+    </div>
+    <div class="arrow">&rarr;</div>
+    <div class="layer">
+      <div class="no">Layer 2</div>
+      <h2>Operationalization methods</h2>
+      <div class="role">How to compute the metrics for dialogue</div>
+      <ul>
+        <li>Condition every metric on the dialogue history</li>
+        <li>Reference every measurement to the speaker&rsquo;s own baseline</li>
+        <li>Aggregate from single turns into process-level readouts</li>
+      </ul>
+    </div>
+    <div class="arrow">&rarr;</div>
+    <div class="layer">
+      <div class="no">Layer 3</div>
+      <h2>Design principles</h2>
+      <div class="role">How to use and validate the measurement</div>
+      <ul>
+        <li>Analyse at the dimension level</li>
+        <li>Measure self-referentially</li>
+        <li>Interpret semantic distance as engagement</li>
+        <li>Validate by manipulation and external outcomes</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer">Implemented as the open-source pipeline <strong>TIDE</strong> &mdash; Turn-level Information-theoretic Dialogue Evaluation</div>
+</div>

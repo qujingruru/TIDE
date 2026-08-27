@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use TIDE, please cite this software and the accompanying paper."
+title: "TIDE: Turn-level Information-theoretic Dialogue Evaluation"
+type: software
+authors:
+  - given-names: Jingru
+    family-names: Qu
+    email: qujingru@cuhk.edu.cn
+    orcid: "https://orcid.org/0000-0003-1331-4095"
+  - given-names: Ling
+    family-names: Dai
+    email: dailing@nju.edu.cn
+    orcid: "https://orcid.org/0009-0006-8384-4664"
+version: 0.1.0
+date-released: 2026-08-28
+repository-code: "https://github.com/qujingruru/TIDE"
+license: MIT
+keywords:
+  - dialogue analysis
+  - information theory
+  - creative thinking
+  - educational measurement
