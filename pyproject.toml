@@ -41,7 +41,7 @@ dependencies = [
 models = [
   "sentence-transformers>=3.4,<6",
   "torch>=2.2,<3",
-  "transformers>=4.45,<5",
+  "transformers>=5.5,<6",
 ]
 analysis = [
   "matplotlib>=3.8,<4",

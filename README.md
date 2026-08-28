@@ -13,7 +13,8 @@ TIDE accompanies the manuscript *What Can Information-Theoretic Metrics Tell Us 
 - Unit tests with constructed inputs of known answers.
 - The turn-level creative-thinking rubric used in the study.
 - A de-identified numerical table with metrics and ratings but no dialogue text.
-- Reproduction code for the validation report and data-driven paper figures. The authored HTML source and author-approved screenshot for the conceptual Figure 3 are included under `paper_assets/`.
+- Reproduction code for the primary pooled statistics in the validation report and the data-driven paper Figure 2.
+- An additional partial-correlation heatmap for inspecting construct patterns.
 
 ## Installation
 
@@ -52,7 +53,9 @@ uv run --extra models tide compute data/demo/chinese_debates.csv \
   --output outputs/demo_metrics.csv
 ```
 
-The output deliberately omits dialogue text. Each row contains identifiers, turn length, and the six metrics.
+The output deliberately omits dialogue text. Each row contains identifiers,
+turn length, and the six metrics. TIDE reports statistical properties of
+language; it does not output creativity or critical-thinking scores.
 
 ```text
 dialogue_id, turn_id, turn, speaker, n_chars,
@@ -70,9 +73,12 @@ All model identifiers, immutable revisions, the random seed, context length, MAT
 uv run tide show-config
 ```
 
-## Reproduce the paper analyses and figures
+## Reproduce the primary pooled analyses and Figure 2
 
-The public numerical table contains 1,567 turn rows from 103 dialogues and no dialogue text. To generate the validation report and Figures 1 and 2:
+The public numerical table contains 1,567 turn rows from 103 dialogues and no
+dialogue text. To regenerate the validation report's pooled correlations,
+Table 2, headline regressions, the manuscript's data-driven Figure 2, and an
+additional correlation heatmap:
 
 ```bash
 uv run --extra analysis tide reproduce \
@@ -80,7 +86,17 @@ uv run --extra analysis tide reproduce \
   --output-dir outputs/paper
 ```
 
-Figure 1 is recalculated from partial correlations that control turn length. Figure 2 is recalculated from semantic-distance quintiles with one-standard-error bars. Both use the manuscript's STIX serif family and embedded TrueType fonts. Figure 3 is a conceptual design artifact rather than a statistical plot; its editable HTML, approved screenshot, and rendered PDF are preserved in `paper_assets/`.
+Figure 2 is recalculated as separate creative- and critical-thinking panels
+from semantic-distance quintiles with one-standard-error bars. The diagnostic
+heatmap contains partial correlations that control turn length. Both use the
+manuscript's STIX serif family and embedded TrueType fonts. Figures 1 and 3 in
+the manuscript are conceptual diagrams and are not claimed as outputs of the
+statistical reproduction command.
+
+Speaker-relative standardization groups turns by both dialogue and speaker.
+Trajectory features use full-sample standardization, the observed turn
+sequence, and population variability. Regression tests lock these definitions
+to the reported values.
 
 The hierarchical-regression implementation uses a correctly signed nested-model F test. The original exploratory script had reversed the residual-sum-of-squares subtraction; tests now protect the corrected calculation.
 
@@ -102,7 +118,11 @@ uv build
 
 ## Data availability and privacy
 
-Raw dialogue transcripts are not included because of privacy restrictions. The public paper table contains only coded identifiers, pseudonymous within-dialogue speaker labels, numerical metrics, and numerical ratings. See `data/README.md` and `DATA_LICENSE.md`.
+Raw dialogue transcripts are not included because of privacy restrictions and
+are not required for statistical reproduction. The public paper table contains
+only coded identifiers, pseudonymous within-dialogue speaker labels, numerical
+metrics, and numerical ratings. The synthetic file is sufficient for testing
+the text-to-metrics pipeline. See `data/README.md` and `DATA_LICENSE.md`.
 
 ## Citation
 

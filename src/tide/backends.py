@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -15,9 +15,7 @@ from tide.config import PipelineConfig
 from tide.metrics import aggregate_surprisal
 
 if TYPE_CHECKING:
-    from sentence_transformers import SentenceTransformer
     from torch import Tensor
-    from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 LOGGER = logging.getLogger(__name__)
 
@@ -48,26 +46,29 @@ class HuggingFaceBackend:
         embedding = config.models.embedding_model
         language = config.models.language_model
         LOGGER.info("Loading embedding model %s at %s", embedding.name, embedding.revision)
-        self.embedder: SentenceTransformer = SentenceTransformer(
+        # Transformers and SentenceTransformers expose version-dependent generic
+        # return types. Keep the boundary dynamic and convert outputs immediately.
+        self.embedder: Any = SentenceTransformer(
             embedding.name,
             revision=embedding.revision,
             device=self.device,
             local_files_only=config.runtime.local_files_only,
         )
         LOGGER.info("Loading language model %s at %s", language.name, language.revision)
-        self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
+        self.tokenizer: Any = AutoTokenizer.from_pretrained(
             language.name,
             revision=language.revision,
             local_files_only=config.runtime.local_files_only,
             use_fast=True,
         )
         dtype = torch.float32 if self.device == "cpu" else torch.float16
-        self.language_model: PreTrainedModel = AutoModelForCausalLM.from_pretrained(
+        language_model: Any = AutoModelForCausalLM.from_pretrained(
             language.name,
             revision=language.revision,
             local_files_only=config.runtime.local_files_only,
-            torch_dtype=dtype,
-        ).to(self.device)
+            dtype=dtype,
+        )
+        self.language_model: Any = language_model.to(self.device)
         self.language_model.eval()
 
     def _resolve_device(self, requested: str) -> str:

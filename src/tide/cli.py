@@ -33,7 +33,10 @@ def _parser() -> argparse.ArgumentParser:
     analyze.add_argument("input", type=Path, help="De-identified metric and rating CSV")
     analyze.add_argument("--output", "-o", type=Path, required=True, help="Markdown report")
 
-    reproduce = subparsers.add_parser("reproduce", help="Reproduce paper report and figures")
+    reproduce = subparsers.add_parser(
+        "reproduce",
+        help="Reproduce the validation report, paper Figure 2, and a diagnostic heatmap",
+    )
     reproduce.add_argument("input", type=Path, help="De-identified metric and rating CSV")
     reproduce.add_argument("--output-dir", "-o", type=Path, required=True)
 

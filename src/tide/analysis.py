@@ -125,14 +125,21 @@ def hierarchical_delta_r2(
 def add_within_dialogue_zscores(
     frame: pd.DataFrame,
     dialogue_column: str = "dialogue_id",
+    speaker_column: str = "speaker_id",
     metrics: list[str] | None = None,
 ) -> pd.DataFrame:
-    """Add within-dialogue z scores for the selected metrics."""
+    """Add speaker-relative z scores within each dialogue."""
 
     selected = metrics or METRICS
+    group_columns = [dialogue_column, speaker_column]
+    missing = [column for column in group_columns if column not in frame.columns]
+    if missing:
+        raise ValueError(
+            "Speaker-relative standardization is missing columns: " + ", ".join(missing)
+        )
     output = frame.copy()
     for metric in selected:
-        grouped = output.groupby(dialogue_column)[metric]
+        grouped = output.groupby(group_columns)[metric]
         mean = grouped.transform("mean")
         standard_deviation = grouped.transform("std").replace(0, np.nan)
         output[f"{metric}_z"] = (output[metric] - mean) / standard_deviation
@@ -144,7 +151,7 @@ def correlation_matrix(
     metric_columns: list[str],
     rating_columns: list[str],
 ) -> NDArray[np.float64]:
-    """Return the partial-correlation matrix used by Figure 1."""
+    """Return the partial-correlation matrix used by the diagnostic heatmap."""
 
     return np.asarray(
         [
@@ -176,7 +183,7 @@ def build_speaker_trajectories(frame: pd.DataFrame) -> pd.DataFrame:
 
     standardized = frame.copy()
     for metric in ["surprisal_mean", "surprisal_sent_max", "sem_dist_partner"]:
-        standard_deviation = standardized[metric].std()
+        standard_deviation = standardized[metric].std(ddof=0)
         standardized[f"{metric}_z"] = (
             standardized[metric] - standardized[metric].mean()
         ) / standard_deviation
@@ -194,7 +201,7 @@ def build_speaker_trajectories(frame: pd.DataFrame) -> pd.DataFrame:
         if len(group) < 8:
             continue
         values = group["novelty_composite"].to_numpy(dtype=float)
-        time = np.linspace(0.0, 1.0, len(values))
+        time = np.arange(len(values), dtype=float)
         third = max(1, len(values) // 3)
         rows.append(
             {
@@ -204,7 +211,7 @@ def build_speaker_trajectories(frame: pd.DataFrame) -> pd.DataFrame:
                 "novelty_mean": float(values.mean()),
                 "mean_turn_length": float(group["n_chars"].mean()),
                 "trajectory_slope": float(np.polyfit(time, values, 1)[0]),
-                "trajectory_variability": float(values.std(ddof=1)),
+                "trajectory_variability": float(values.std(ddof=0)),
                 "trajectory_rise": float(values[-third:].mean() - values[:third].mean()),
                 "trajectory_peak": float(values.max()),
                 "creative_thinking": float(group["cr_turn_composite"].mean()),
@@ -248,7 +255,7 @@ def validation_report(frame: pd.DataFrame) -> str:
     lines.extend(
         [
             "",
-            "## Within-dialogue standardized metrics",
+            "## Speaker-relative standardized metrics",
             "",
             "| Metric | Fluency | Flexibility | Originality | Critical thinking |",
             "|---|---:|---:|---:|---:|",
@@ -260,7 +267,7 @@ def validation_report(frame: pd.DataFrame) -> str:
         lines.append(f"| {metric_z} | " + " | ".join(f"{value:.3f}" for value in values) + " |")
 
     paper_table_metrics = [
-        ("surprisal_mean_z", "Surprisal (within-dialogue z)"),
+        ("surprisal_mean_z", "Surprisal (speaker-relative z)"),
         ("surprisal_sent_max_z", "Sentence-max surprisal (z)"),
         ("sem_dist_partner_z", "Semantic distance to partner (z)"),
         ("self_novelty", "Self-novelty (vs. own history)"),
@@ -268,7 +275,7 @@ def validation_report(frame: pd.DataFrame) -> str:
     lines.extend(
         [
             "",
-            "## Paper Table 1: novelty metrics by rating dimension",
+            "## Paper Table 2: novelty metrics by rating dimension",
             "",
             "| Metric | Fluency | Flexibility | Originality | Critical thinking |",
             "|---|---:|---:|---:|---:|",
