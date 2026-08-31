@@ -12,6 +12,10 @@ models:
 surprisal:
   max_context_tokens: 512
 
+embedding:
+  max_tokens: 512
+  long_text_strategy: token_weighted_chunks
+
 mattr_window: 10
 
 columns:
@@ -24,5 +28,10 @@ columns:
 runtime:
   device: auto
   embedding_batch_size: 32
+  language_batch_size: 4
+  language_token_budget: 3072
+  language_logit_chunk_size: 64
   local_files_only: false
-  context_template: "{speaker}: {text}\n"
+  normalize_speakers: true
+  context_template: "{speaker}:\n{text}\n"
+  target_prefix_template: "{speaker}:\n"

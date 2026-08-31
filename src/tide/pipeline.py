@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, cast
 
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
 from tide.config import PipelineConfig, load_config
-from tide.metrics import cosine_distance, lexical_entropy, mattr, segment_words
+from tide.metrics import (
+    cosine_distance,
+    count_non_whitespace_characters,
+    lexical_entropy,
+    mattr,
+    segment_words,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,6 +28,9 @@ METRIC_COLUMNS = [
     "surprisal_sent_max",
     "sem_dist_partner",
     "sem_dist_self",
+    "self_novelty",
+    "delta_surprisal",
+    "peak_break",
 ]
 
 
@@ -41,6 +50,8 @@ def _prepare_dialogues(frame: pd.DataFrame, config: PipelineConfig) -> pd.DataFr
         raise ValueError(f"Input is missing required columns: {', '.join(missing)}")
     if bool(frame[required].isna().to_numpy().any()):
         raise ValueError("Required input columns may not contain missing values")
+    if bool(frame[columns.text].astype(str).str.strip().eq("").to_numpy().any()):
+        raise ValueError("Turn text may not be empty or whitespace only")
 
     prepared = frame.copy()
     if columns.dialogue_id not in prepared.columns:
@@ -58,7 +69,7 @@ def compute_metrics_frame(
     config: PipelineConfig,
     backend: MetricBackend,
 ) -> pd.DataFrame:
-    """Compute all six TIDE metrics for every turn in a dialogue table."""
+    """Compute all nine TIDE readouts for every turn in a dialogue table."""
 
     prepared = _prepare_dialogues(frame, config)
     columns = config.columns
@@ -74,20 +85,57 @@ def compute_metrics_frame(
         if embeddings.ndim != 2 or embeddings.shape[0] != len(group):
             raise ValueError("Embedding backend returned an invalid matrix shape")
 
+        contexts: list[str] = []
+        context_speaker_labels: dict[str, str] = {}
         context = ""
+        for position in range(len(group)):
+            row = group.iloc[position]
+            speaker = str(row[columns.speaker])
+            if config.runtime.normalize_speakers:
+                speaker_label = context_speaker_labels.setdefault(
+                    speaker,
+                    f"S{len(context_speaker_labels) + 1:02d}",
+                )
+            else:
+                speaker_label = speaker
+            contexts.append(
+                context + config.runtime.target_prefix_template.format(speaker=speaker_label)
+            )
+            context += config.runtime.context_template.format(
+                speaker=speaker_label,
+                text=str(row[columns.text]),
+            )
+        batch_scorer = getattr(backend, "score_surprisal_batch", None)
+        if callable(batch_scorer):
+            surprisal_scores = cast(
+                list[tuple[float, float]],
+                batch_scorer(list(zip(contexts, texts, strict=True))),
+            )
+        else:
+            surprisal_scores = [
+                backend.score_surprisal(turn_context, text)
+                for turn_context, text in zip(contexts, texts, strict=True)
+            ]
+        if len(surprisal_scores) != len(group):
+            raise ValueError("Surprisal backend returned the wrong number of scores")
+
         previous_by_speaker: dict[str, int] = {}
+        positions_by_speaker: dict[str, list[int]] = {}
+        surprisal_by_speaker: dict[str, list[float]] = {}
         for position in range(len(group)):
             row = group.iloc[position]
             text = str(row[columns.text])
             speaker = str(row[columns.speaker])
             words = segment_words(text)
-            surprisal_mean, surprisal_max = backend.score_surprisal(context, text)
+            surprisal_mean, surprisal_max = surprisal_scores[position]
             partner_positions = [
                 previous_position
                 for previous_speaker, previous_position in previous_by_speaker.items()
                 if previous_speaker != speaker
             ]
             partner_position = max(partner_positions) if partner_positions else None
+            own_positions = positions_by_speaker.get(speaker, [])
+            own_surprisals = surprisal_by_speaker.get(speaker, [])
             turn_id = (
                 str(row[columns.turn_id])
                 if columns.turn_id in group.columns
@@ -98,7 +146,8 @@ def compute_metrics_frame(
                 "turn_id": turn_id,
                 "turn": row[columns.turn],
                 "speaker": speaker,
-                "n_chars": len(text),
+                "n_chars": count_non_whitespace_characters(text),
+                "n_words": len(words),
                 "lexical_entropy": lexical_entropy(words),
                 "mattr": mattr(words, config.mattr_window),
                 "surprisal_mean": surprisal_mean,
@@ -116,12 +165,25 @@ def compute_metrics_frame(
                     if speaker in previous_by_speaker
                     else np.nan
                 ),
+                "self_novelty": (
+                    min(
+                        cosine_distance(embeddings[position], embeddings[prior_position])
+                        for prior_position in own_positions
+                    )
+                    if own_positions
+                    else np.nan
+                ),
+                "delta_surprisal": (
+                    surprisal_mean - own_surprisals[-1] if own_surprisals else np.nan
+                ),
+                "peak_break": (surprisal_mean - max(own_surprisals) if own_surprisals else np.nan),
             }
             if "group" in group.columns:
                 output_row["group"] = row["group"]
             rows.append(output_row)
             previous_by_speaker[speaker] = position
-            context += config.runtime.context_template.format(speaker=speaker, text=text)
+            positions_by_speaker.setdefault(speaker, []).append(position)
+            surprisal_by_speaker.setdefault(speaker, []).append(surprisal_mean)
 
         if dialogue_index % 10 == 0:
             LOGGER.info("Processed %d dialogues and %d turns", dialogue_index, len(rows))

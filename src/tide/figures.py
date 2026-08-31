@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -31,6 +32,7 @@ FIGURE_METRIC_LABELS = [
 ]
 RATING_COLUMNS = ["CR01_avg", "CR02_avg", "CR03_avg", "ct_composite"]
 RATING_LABELS = ["Fluency", "Flexibility", "Originality", "Critical\nthinking"]
+A4_WIDTH_INCHES = 210 / 25.4
 
 
 def _require_matplotlib() -> Any:
@@ -60,7 +62,7 @@ def publication_style() -> Iterator[Any]:
         "ytick.labelsize": 9,
         "legend.fontsize": 9,
         "axes.linewidth": 0.8,
-        "savefig.bbox": "tight",
+        "savefig.bbox": None,
         "savefig.pad_inches": 0.05,
     }
     with plt.rc_context(settings):
@@ -133,7 +135,7 @@ def summarize_distance_quintiles(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def grounded_novelty_partial_correlations(frame: pd.DataFrame) -> tuple[float, float]:
-    """Return the two turn-length-controlled correlations shown in Figure 2."""
+    """Return two turn-length-controlled correlations for a legacy diagnostic."""
 
     scored = frame.dropna(subset=["CR01_avg"])
     creative = partial_correlation(
@@ -215,7 +217,7 @@ def create_grounded_novelty_plot(
     frame: pd.DataFrame,
     output_stem: str | Path,
 ) -> tuple[Path, Path]:
-    """Reproduce the manuscript's two-panel Figure 2."""
+    """Create the legacy two-panel grounded-novelty diagnostic."""
 
     summary = summarize_distance_quintiles(frame)
     creative_correlation, critical_correlation = grounded_novelty_partial_correlations(frame)
@@ -264,13 +266,175 @@ def create_grounded_novelty_plot(
     return paths
 
 
+def _parse_interval(value: str) -> tuple[float, float]:
+    numbers = re.findall(r"-?\d+(?:\.\d+)?", str(value))
+    if len(numbers) != 2:
+        raise ValueError(f"Could not parse confidence interval: {value}")
+    return float(numbers[0]), float(numbers[1])
+
+
+def create_held_out_increment_plot(
+    table: pd.DataFrame,
+    output_stem: str | Path,
+) -> tuple[Path, Path]:
+    """Plot paired held-out gains over the two principal rival baselines."""
+
+    required = [
+        "Outcome",
+        "Delta R2 over structural length",
+        "95% CI",
+        "Delta R2 over established descriptors",
+        "95% CI.1",
+    ]
+    missing = [column for column in required if column not in table.columns]
+    if missing:
+        raise ValueError("Held-out increment table is missing: " + ", ".join(missing))
+    output = Path(output_stem).expanduser().resolve()
+    outcomes = table["Outcome"].astype(str).tolist()
+    y_values = np.arange(len(outcomes))[::-1]
+    panels = [
+        (
+            "Delta R2 over structural length",
+            "95% CI",
+            "A  Beyond structural length",
+            "#163A5F",
+        ),
+        (
+            "Delta R2 over established descriptors",
+            "95% CI.1",
+            "B  Beyond established descriptors",
+            "#52697D",
+        ),
+    ]
+    with publication_style() as plt:
+        figure, axes = plt.subplots(
+            1,
+            2,
+            figsize=(A4_WIDTH_INCHES, 3.55),
+            sharey=True,
+            constrained_layout=True,
+        )
+        for axis, (estimate_column, interval_column, title, color) in zip(
+            axes,
+            panels,
+            strict=True,
+        ):
+            estimates = table[estimate_column].astype(float).to_numpy()
+            intervals = [_parse_interval(value) for value in table[interval_column]]
+            lower = np.array([interval[0] for interval in intervals])
+            upper = np.array([interval[1] for interval in intervals])
+            errors = np.vstack([estimates - lower, upper - estimates])
+            axis.errorbar(
+                estimates,
+                y_values,
+                xerr=errors,
+                fmt="o",
+                color=color,
+                markerfacecolor="white",
+                markeredgewidth=1.5,
+                markersize=6.5,
+                capsize=3,
+                linewidth=1.4,
+            )
+            axis.axvline(0, color="#8A949C", linewidth=0.9, linestyle="--")
+            axis.set_title(title, loc="left", fontsize=11, fontweight="bold")
+            axis.set_xlabel(r"Paired held-out $\Delta R^2$")
+            axis.grid(axis="x", color="#DDE2E6", linewidth=0.7)
+            axis.spines[["top", "right", "left"]].set_visible(False)
+            axis.tick_params(axis="y", length=0)
+        axes[0].set_yticks(y_values, outcomes)
+        paths = _save_figure(figure, output)
+        plt.close(figure)
+    return paths
+
+
+def create_computational_diagnostic_plot(
+    frame: pd.DataFrame,
+    output_stem: str | Path,
+) -> tuple[Path, Path]:
+    """Visualize three controlled checks of the readout definitions."""
+
+    indexed = frame.set_index("turn_id")
+    required = [
+        "REPEAT-T03",
+        "PARAPHRASE-T03",
+        "GROUNDED-T03",
+        "DETACHED-T03",
+        "LOW_ENTROPY-T01",
+        "HIGH_ENTROPY-T01",
+        "NO_CONTEXT-T01",
+    ]
+    missing = [turn_id for turn_id in required if turn_id not in indexed.index]
+    if missing:
+        raise ValueError("Diagnostic metrics are missing: " + ", ".join(missing))
+    output = Path(output_stem).expanduser().resolve()
+    navy = "#163A5F"
+    light = "#A9B8C5"
+    with publication_style() as plt:
+        figure, axes = plt.subplots(
+            1,
+            3,
+            figsize=(A4_WIDTH_INCHES, 3.50),
+            constrained_layout=True,
+        )
+        labels = ["Repeat", "Paraphrase", "Grounded\nupdate", "Detached\nturn"]
+        values = [
+            float(indexed.loc[turn_id, "self_novelty"])
+            for turn_id in ["REPEAT-T03", "PARAPHRASE-T03", "GROUNDED-T03", "DETACHED-T03"]
+        ]
+        axes[0].bar(np.arange(4), values, color=[light, navy, navy, navy], width=0.68)
+        axes[0].set_xticks(np.arange(4), labels, rotation=20, ha="right")
+        axes[0].set_ylabel("Self-novelty")
+        axes[0].set_title("A  Reference behavior", loc="left", fontsize=11, fontweight="bold")
+
+        lexical_values = [
+            float(indexed.loc["LOW_ENTROPY-T01", "lexical_entropy"]),
+            float(indexed.loc["HIGH_ENTROPY-T01", "lexical_entropy"]),
+        ]
+        axes[1].bar([0, 1], lexical_values, color=[light, navy], width=0.62)
+        axes[1].set_xticks([0, 1], ["Repeated\nwords", "Diversified\nwords"])
+        axes[1].set_ylabel("Lexical entropy (nats)")
+        axes[1].set_title("B  Lexical redistribution", loc="left", fontsize=11, fontweight="bold")
+
+        context_values = [
+            float(indexed.loc["NO_CONTEXT-T01", "surprisal_mean"]),
+            float(indexed.loc["GROUNDED-T03", "surprisal_mean"]),
+        ]
+        axes[2].bar([0, 1], context_values, color=[light, navy], width=0.62)
+        axes[2].set_xticks([0, 1], ["No prior\ndialogue", "With prior\ndialogue"])
+        axes[2].set_ylabel("Mean surprisal (nats)")
+        axes[2].set_title("C  Context conditioning", loc="left", fontsize=11, fontweight="bold")
+        for axis in axes:
+            axis.grid(axis="y", color="#DDE2E6", linewidth=0.7)
+            axis.set_axisbelow(True)
+            axis.spines[["top", "right"]].set_visible(False)
+        paths = _save_figure(figure, output)
+        plt.close(figure)
+    return paths
+
+
 def reproduce_paper_figures(
     frame: pd.DataFrame,
     output_directory: str | Path,
 ) -> list[Path]:
-    """Generate paper Figure 2 and an additional diagnostic heatmap."""
+    """Generate the two data-driven paper figures and an additional heatmap."""
 
     output = Path(output_directory).expanduser().resolve()
     heatmap = create_correlation_heatmap(frame, output / "correlation_heatmap")
-    figure_2 = create_grounded_novelty_plot(frame, output / "fig2_grounded_novelty")
-    return [*heatmap, *figure_2]
+    increment_table = pd.read_csv(
+        output / "validation_tables" / "paired_held_out_improvement_of_the_full_tide_family.csv"
+    )
+    held_out_figure = create_held_out_increment_plot(
+        increment_table,
+        output / "fig3_heldout_increment",
+    )
+    diagnostic_path = Path("data/demo/diagnostic_metrics.csv")
+    if not diagnostic_path.is_file():
+        raise FileNotFoundError(
+            "data/demo/diagnostic_metrics.csv is required to reproduce paper Figure 2"
+        )
+    diagnostic_figure = create_computational_diagnostic_plot(
+        pd.read_csv(diagnostic_path),
+        output / "fig2_computational_diagnostics",
+    )
+    return [*heatmap, *diagnostic_figure, *held_out_figure]

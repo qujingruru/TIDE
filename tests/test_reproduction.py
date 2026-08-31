@@ -19,14 +19,14 @@ def test_public_table_reproduces_primary_report_values(tmp_path: Path) -> None:
     frame = pd.read_csv(PUBLIC_DATA)
     report = validation_report(frame)
     assert "Sample: 103 dialogues and 1554 scored turns." in report
-    assert "| lexical_entropy | 0.678 | 0.369 | 0.175 | 0.554 |" in report
-    assert "| Surprisal (speaker-relative z) | -0.057 | -0.037 | 0.155 | 0.008 |" in report
-    assert "| Self-novelty (vs. own history) | -0.204 | -0.223 | 0.143 | -0.202 |" in report
-    assert "| Fluency | 0.081 | 28.44 | 6, 1404 | < .001 |" in report
+    assert "| lexical_entropy | 0.669 | 0.372 | 0.171 | 0.555 |" in report
+    assert "| Surprisal (speaker-relative z) | -0.013 | -0.022 | 0.152 | 0.011 |" in report
+    assert "| Self-novelty (vs. own history) | -0.166 | -0.197 | 0.142 | -0.172 |" in report
+    assert "| Fluency | 0.074 | 25.55 | 6, 1404 | < .001 |" in report
     assert "Trajectories with at least eight turns: 135." in report
-    assert "| Creative thinking | 0.059 | 4.53 | 4, 128 | = .002 |" in report
-    assert "| Originality | 0.059 | 2.30 | 4, 128 | = .062 |" in report
-    assert "| Critical thinking | 0.135 | 10.00 | 4, 128 | < .001 |" in report
+    assert "| Creative thinking | 0.063 | 4.75 | 4, 128 | = .001 |" in report
+    assert "| Originality | 0.051 | 1.95 | 4, 128 | = .105 |" in report
+    assert "| Critical thinking | 0.138 | 10.30 | 4, 128 | < .001 |" in report
 
     output = write_validation_report(frame, tmp_path / "report.md")
     assert output.read_text(encoding="utf-8") == report
@@ -47,8 +47,8 @@ def test_public_table_builds_135_speaker_trajectories() -> None:
 def test_figure_2_correlations_are_computed_from_the_input() -> None:
     frame = pd.read_csv(PUBLIC_DATA)
     creative, critical = grounded_novelty_partial_correlations(frame)
-    assert creative == pytest.approx(-0.22221828197968374)
-    assert critical == pytest.approx(-0.4001385003814072)
+    assert creative == pytest.approx(-0.20660195605652254)
+    assert critical == pytest.approx(-0.3886885189517012)
 
     modified = frame.copy()
     modified["cr_turn_composite"] = modified["sem_dist_partner"]
@@ -58,12 +58,28 @@ def test_figure_2_correlations_are_computed_from_the_input() -> None:
 
 def test_reproduction_writes_both_data_driven_figures(tmp_path: Path) -> None:
     frame = pd.read_csv(PUBLIC_DATA)
+    tables = tmp_path / "validation_tables"
+    tables.mkdir()
+    pd.DataFrame(
+        {
+            "Outcome": ["Fluency", "Flexibility", "Originality", "Critical thinking"],
+            "Delta R2 over structural length": [0.02, 0.01, 0.06, 0.03],
+            "95% CI": ["[0.01, 0.03]", "[-0.01, 0.02]", "[0.03, 0.09]", "[0.01, 0.05]"],
+            "Delta R2 over established descriptors": [0.01, 0.00, 0.03, 0.01],
+            "95% CI.1": ["[0.00, 0.02]", "[-0.01, 0.01]", "[0.01, 0.05]", "[-0.01, 0.02]"],
+        }
+    ).to_csv(
+        tables / "paired_held_out_improvement_of_the_full_tide_family.csv",
+        index=False,
+    )
     paths = reproduce_paper_figures(frame, tmp_path)
     assert {path.name for path in paths} == {
         "correlation_heatmap.pdf",
         "correlation_heatmap.png",
-        "fig2_grounded_novelty.pdf",
-        "fig2_grounded_novelty.png",
+        "fig2_computational_diagnostics.pdf",
+        "fig2_computational_diagnostics.png",
+        "fig3_heldout_increment.pdf",
+        "fig3_heldout_increment.png",
     }
     assert all(path.stat().st_size > 1_000 for path in paths)
 

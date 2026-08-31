@@ -1,0 +1,16 @@
+dialogue_id,turn_id,turn,speaker,text
+REPEAT,REPEAT-T01,1,A,校园应该增加公共绿地。
+REPEAT,REPEAT-T02,2,B,我同意，绿地能改善环境，但也要考虑维护成本。
+REPEAT,REPEAT-T03,3,A,校园应该增加公共绿地。
+PARAPHRASE,PARAPHRASE-T01,1,A,校园应该增加公共绿地。
+PARAPHRASE,PARAPHRASE-T02,2,B,我同意，绿地能改善环境，但也要考虑维护成本。
+PARAPHRASE,PARAPHRASE-T03,3,A,学校应当扩充共享的绿色空间。
+GROUNDED,GROUNDED-T01,1,A,校园应该增加公共绿地。
+GROUNDED,GROUNDED-T02,2,B,我同意，绿地能改善环境，但也要考虑维护成本。
+GROUNDED,GROUNDED-T03,3,A,可以先改造闲置角落，以较低成本增加遮阴并缓解热岛。
+DETACHED,DETACHED-T01,1,A,校园应该增加公共绿地。
+DETACHED,DETACHED-T02,2,B,我同意，绿地能改善环境，但也要考虑维护成本。
+DETACHED,DETACHED-T03,3,A,量子力学中的波函数描述了微观粒子的概率幅。
+LOW_ENTROPY,LOW_ENTROPY-T01,1,A,绿地绿地绿地绿地绿地绿地。
+HIGH_ENTROPY,HIGH_ENTROPY-T01,1,A,校园草坪树林花园步道池塘共同构成绿色空间。
+NO_CONTEXT,NO_CONTEXT-T01,1,A,可以先改造闲置角落，以较低成本增加遮阴并缓解热岛。

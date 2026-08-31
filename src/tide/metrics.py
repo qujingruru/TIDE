@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Sequence
 
 import jieba
@@ -10,6 +11,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 SENTENCE_PATTERN = re.compile(r"[^。！？；!?.;]+[。！？；!?.;]*")
+WHITESPACE_PATTERN = re.compile(r"\s+")
 
 
 def sentence_spans(text: str) -> list[tuple[int, int]]:
@@ -23,9 +25,22 @@ def sentence_spans(text: str) -> list[tuple[int, int]]:
 
 
 def segment_words(text: str) -> list[str]:
-    """Segment Chinese text with jieba while discarding whitespace-only tokens."""
+    """Return normalized lexical tokens while excluding punctuation and symbols."""
 
-    return [token for token in jieba.lcut(text) if token.strip()]
+    normalized = WHITESPACE_PATTERN.sub(" ", unicodedata.normalize("NFKC", text)).strip()
+    tokens: list[str] = []
+    for raw_token in jieba.lcut(normalized):
+        token = raw_token.strip().casefold()
+        if token and any(unicodedata.category(character)[0] in {"L", "N"} for character in token):
+            tokens.append(token)
+    return tokens
+
+
+def count_non_whitespace_characters(text: str) -> int:
+    """Count NFKC-normalized characters other than formatting whitespace."""
+
+    normalized = unicodedata.normalize("NFKC", text)
+    return sum(not character.isspace() for character in normalized)
 
 
 def lexical_entropy(words: Sequence[str]) -> float:

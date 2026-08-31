@@ -7,13 +7,15 @@ TIDE accompanies the manuscript *What Can Information-Theoretic Metrics Tell Us 
 ## What is included
 
 - A pip-installable Python package and `tide` command-line interface.
-- Six turn-level metrics: lexical entropy, MATTR, mean surprisal, maximum sentence-level surprisal, semantic distance to the preceding partner turn, and semantic distance to the speaker's previous turn.
+- Six principal turn-level metrics: lexical entropy, MATTR, mean surprisal, maximum sentence-level surprisal, semantic distance to the preceding partner turn, and semantic distance to the speaker's previous turn.
+- Three explicitly derived, speaker-referenced readouts: distance to the most similar prior self turn, change from the preceding self turn's surprisal, and change from the speaker's prior surprisal peak.
 - Immutable Hugging Face model revisions and all parameters in one YAML configuration.
 - A fully synthetic Chinese debate dataset for end-to-end use.
 - Unit tests with constructed inputs of known answers.
-- The turn-level creative-thinking rubric used in the study.
-- A de-identified numerical table with metrics and ratings but no dialogue text.
-- Reproduction code for the primary pooled statistics in the validation report and the data-driven paper Figure 2.
+- The turn-level creative- and critical-thinking rubrics used in the study.
+- A de-identified numerical table with metrics, adjudicated ratings, and paired
+  rater values for reliability analysis, but no dialogue text.
+- Reproduction code for the complete validation report and both data-driven paper figures.
 - An additional partial-correlation heatmap for inspecting construct patterns.
 
 ## Installation
@@ -54,13 +56,14 @@ uv run --extra models tide compute data/demo/chinese_debates.csv \
 ```
 
 The output deliberately omits dialogue text. Each row contains identifiers,
-turn length, and the six metrics. TIDE reports statistical properties of
+character and segmented-word length, the six principal metrics, and the three
+speaker-referenced readouts. TIDE reports statistical properties of
 language; it does not output creativity or critical-thinking scores.
 
 ```text
-dialogue_id, turn_id, turn, speaker, n_chars,
+dialogue_id, turn_id, turn, speaker, n_chars, n_words,
 lexical_entropy, mattr, surprisal_mean, surprisal_sent_max,
-sem_dist_partner, sem_dist_self
+sem_dist_partner, sem_dist_self, self_novelty, delta_surprisal, peak_break
 ```
 
 The first semantic distance in a dialogue and the first same-speaker distance are undefined and are written as missing values.
@@ -73,36 +76,127 @@ All model identifiers, immutable revisions, the random seed, context length, MAT
 uv run tide show-config
 ```
 
-## Reproduce the primary pooled analyses and Figure 2
+`config/paper.yaml` freezes the exact canonical manuscript run and requires the
+model snapshots to exist locally. Its model revisions, probability definition,
+batch size, and memory bounds are fixed; `config/pipeline.yaml` uses the same
+numerical settings but permits the initial model download.
+
+For the paper configuration, speakers are serialized as neutral labels in order
+of first appearance (`S01`, `S02`, and so on). Each target turn is scored after
+its speaker prefix on the preceding line, for example `S01:\n`, and all
+preceding turns retain the same labels. The backend tokenizes the serialized
+context and target jointly, then locates the target tokens from character
+offsets before truncating the context. This preserves the model tokenizer's
+canonical token sequence at the context-target boundary. The serialization
+keeps the conditional-probability definition identical across dialogue types
+and prevents source-specific labels such as `student`, `opponent`, `A`, or `B`
+from entering the language-model readout. Set
+`runtime.normalize_speakers: false` only when role labels are intentionally part
+of the measurement design.
+
+Lexical metrics use a separate documented preprocessing path: Unicode NFKC
+normalization, collapsed whitespace, jieba 0.42.1 segmentation, Unicode
+casefolding, and removal of tokens containing no letter or number. BGE inputs
+retain the original turn text. Turns exceeding BGE's 512-token limit are split
+into consecutive non-overlapping 510-content-token chunks. Each chunk is
+embedded and L2-normalized; TIDE then computes a content-token-weighted mean
+and normalizes the resulting full-turn vector. Set
+`embedding.long_text_strategy: truncate` only to run the explicit
+first-510-content-token sensitivity specification.
+
+Custom serialization templates must also preserve a tokenizer boundary between
+the speaker prefix and target text. TIDE raises an explicit error if a token
+spans that boundary. It likewise rejects a request before inference when the
+untruncated target would exceed either the pinned model's position limit or the
+configured language-token budget; target turns are never silently truncated.
+To bound memory without changing the conditional-probability definition, the
+backend runs the causal transformer's hidden-state computation once per batch
+and projects only target positions to the vocabulary. Target logits are
+processed in fixed chunks controlled by `runtime.language_logit_chunk_size`
+(default: 64), rather than materializing context-position logits that are never
+used.
+
+## Reproduce the validation analyses and data-driven figures
 
 The public numerical table contains 1,567 turn rows from 103 dialogues and no
-dialogue text. To regenerate the validation report's pooled correlations,
-Table 2, headline regressions, the manuscript's data-driven Figure 2, and an
-additional correlation heatmap:
+dialogue text. It also contains the text-free outputs of the documented BGE
+truncation sensitivity. To regenerate the cluster-aware validation report, the
+two data-driven paper figures, and an additional diagnostic heatmap:
 
 ```bash
 uv run --extra analysis tide reproduce \
   data/paper/deidentified_turn_metrics_ratings.csv \
-  --output-dir outputs/paper
+  --output-dir outputs/paper \
+  --bootstrap-replicates 5000 \
+  --cv-repeats 5
 ```
 
-Figure 2 is recalculated as separate creative- and critical-thinking panels
-from semantic-distance quintiles with one-standard-error bars. The diagnostic
-heatmap contains partial correlations that control turn length. Both use the
-manuscript's STIX serif family and embedded TrueType fonts. Figures 1 and 3 in
-the manuscript are conceptual diagrams and are not claimed as outputs of the
-statistical reproduction command.
+Figure 2 shows the repetition, lexical-redistribution, and context-conditioning
+checks computed from the synthetic diagnostic cases. Figure 3 shows paired
+held-out gains over structural length and established text descriptors. The
+additional heatmap is retained for inspection but is not a main-text figure.
+All generated figures use the manuscript's STIX serif family and embedded
+TrueType fonts. Figure 1 is the only conceptual diagram.
 
 Speaker-relative standardization groups turns by both dialogue and speaker.
-Trajectory features use full-sample standardization, the observed turn
-sequence, and population variability. Regression tests lock these definitions
-to the reported values.
+Trajectory features are constructed separately for each raw readout from the
+observed turn sequence; scaling for prediction is learned only within each
+training fold. The validation report treats dialogue as the dependence and
+hold-out unit. It uses dialogue-clustered uncertainty, nonlinear length
+controls, dialogue-bootstrap confidence intervals, false-discovery-rate
+adjustment, and nested grouped cross-validation.
 
-The hierarchical-regression implementation uses a correctly signed nested-model F test. The original exploratory script had reversed the residual-sum-of-squares subtraction; tests now protect the corrected calculation.
+To run only this validation report:
 
-## Creative-thinking rubric
+```bash
+uv run --extra analysis tide validate \
+  data/paper/deidentified_turn_metrics_ratings.csv \
+  --output outputs/paper/brm_validation_report.md \
+  --tables-dir outputs/paper/validation_tables \
+  --bootstrap-replicates 5000 \
+  --cv-repeats 5
+```
+
+This analysis treats dialogue as the dependence and hold-out unit. It uses
+dialogue-clustered uncertainty, nonlinear length controls, dialogue bootstrap
+confidence intervals, false-discovery-rate adjustment, and nested grouped
+cross-validation. Baseline families are named for the rival explanation they
+test: nonlinear length, conventional lexical/semantic descriptors,
+information readouts, and the full TIDE family.
+Every Markdown table is also written as a separate CSV so reported results can
+be checked without parsing prose.
+
+## Run the constructed-input diagnostics
+
+The diagnostic cases hold context or target wording fixed while changing one
+defined property. Compute their metrics with the same pinned model instruments,
+then generate a report covering all nine readouts:
+
+```bash
+uv run --extra models tide compute data/demo/diagnostic_cases.csv \
+  --config config/pipeline.yaml \
+  --output outputs/diagnostic_metrics.csv
+
+uv run tide diagnose outputs/diagnostic_metrics.csv \
+  --output outputs/diagnostic_report.md
+```
+
+`data/demo/diagnostic_metrics.csv` records the frozen output used for Figure 2;
+the commands above reproduce it from the synthetic text.
+
+The report verifies deterministic boundary behavior and shows model-instrument
+responses to repetition, paraphrase, grounded updating, topic detachment,
+lexical redistribution, and context removal. These are computational checks,
+not psychological-validity claims.
+
+## Human-rating rubrics
 
 `docs/turn_level_creative_thinking_rubric.md` contains the complete turn-level adaptation of TTCT Fluency, Flexibility, and Originality for argumentative dialogue. Dimension scores should be retained separately; the composite does not replace dimension-level analysis.
+
+`docs/turn_level_critical_thinking_rubric.md` contains the study's turn-level
+adaptation of the CTAR Analysis, Evaluation, and Inference dimensions. The
+study data label the third dimension Reasoning. Paired rater values for both
+rubrics are retained in the de-identified numerical table.
 
 ## Test and quality checks
 

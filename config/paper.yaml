@@ -1,4 +1,4 @@
-# TIDE configuration. Model inference is local and no generative API is called.
+# Frozen configuration used for the manuscript's canonical metric run.
 seed: 42
 
 models:
@@ -31,7 +31,7 @@ runtime:
   language_batch_size: 4
   language_token_budget: 3072
   language_logit_chunk_size: 64
-  local_files_only: false
+  local_files_only: true
   normalize_speakers: true
   context_template: "{speaker}:\n{text}\n"
   target_prefix_template: "{speaker}:\n"

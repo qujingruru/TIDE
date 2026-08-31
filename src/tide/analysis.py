@@ -222,6 +222,61 @@ def build_speaker_trajectories(frame: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def build_metric_trajectories(frame: pd.DataFrame) -> pd.DataFrame:
+    """Build raw-metric trajectory features without full-sample scaling.
+
+    Keeping each metric on its native scale prevents held-out dialogues from
+    influencing the weights of a composite before grouped cross-validation.
+    Scaling for prediction is learned inside each training fold.
+    """
+
+    trajectory_metrics = ["surprisal_mean", "surprisal_sent_max", "sem_dist_partner"]
+    required = [
+        "dialogue_id",
+        "speaker_id",
+        "turn",
+        "n_chars",
+        *trajectory_metrics,
+        "cr_turn_composite",
+        "CR03_avg",
+        "ct_composite",
+    ]
+    missing = [column for column in required if column not in frame.columns]
+    if missing:
+        raise ValueError(f"Trajectory input is missing columns: {', '.join(missing)}")
+
+    rows: list[dict[str, float | int | str]] = []
+    grouped = frame.groupby(["dialogue_id", "speaker_id"], sort=False)
+    for keys, group in grouped:
+        if not isinstance(keys, tuple) or len(keys) != 2:
+            raise TypeError("Expected dialogue and speaker grouping keys")
+        dialogue_id, speaker_id = keys
+        ordered = group.sort_values("turn")
+        complete = ordered.dropna(subset=trajectory_metrics)
+        if len(complete) < 8:
+            continue
+        row: dict[str, float | int | str] = {
+            "dialogue_id": str(dialogue_id),
+            "speaker_id": str(speaker_id),
+            "n_turns": len(complete),
+            "mean_turn_length": float(ordered["n_chars"].mean()),
+            "creative_thinking": float(ordered["cr_turn_composite"].mean()),
+            "originality": float(ordered["CR03_avg"].mean()),
+            "critical_thinking": float(ordered["ct_composite"].mean()),
+        }
+        time = np.arange(len(complete), dtype=float)
+        third = max(1, len(complete) // 3)
+        for metric in trajectory_metrics:
+            values = complete[metric].to_numpy(dtype=float)
+            row[f"{metric}_mean"] = float(values.mean())
+            row[f"{metric}_slope"] = float(np.polyfit(time, values, 1)[0])
+            row[f"{metric}_variability"] = float(values.std(ddof=0))
+            row[f"{metric}_rise"] = float(values[-third:].mean() - values[:third].mean())
+            row[f"{metric}_peak"] = float(values.max())
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
 def _format_p(p_value: float) -> str:
     if np.isnan(p_value):
         return "NA"

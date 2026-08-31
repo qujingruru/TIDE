@@ -6,6 +6,7 @@ import pytest
 
 from tide.analysis import (
     add_within_dialogue_zscores,
+    build_metric_trajectories,
     build_speaker_trajectories,
     hierarchical_delta_r2,
     partial_correlation,
@@ -75,3 +76,66 @@ def test_trajectory_features_match_paper_definitions() -> None:
         standardized[-2:].mean() - standardized[:2].mean()
     )
     assert result["trajectory_peak"] == pytest.approx(standardized.max())
+
+
+def test_ordered_and_distributional_trajectory_features_have_distinct_roles() -> None:
+    ascending = np.arange(8, dtype=float)
+    rows: list[dict[str, float | int | str]] = []
+    for dialogue_id, values in [("D1", ascending), ("D2", ascending[::-1])]:
+        for turn, value in enumerate(values, start=1):
+            rows.append(
+                {
+                    "dialogue_id": dialogue_id,
+                    "speaker_id": "S1",
+                    "turn": turn,
+                    "n_chars": 20,
+                    "surprisal_mean": value,
+                    "surprisal_sent_max": value,
+                    "sem_dist_partner": value,
+                    "cr_turn_composite": 4.0,
+                    "CR03_avg": 1.5,
+                    "ct_composite": 3.0,
+                }
+            )
+    trajectories = build_speaker_trajectories(pd.DataFrame(rows)).set_index("dialogue_id")
+    assert trajectories.loc["D1", "trajectory_slope"] == pytest.approx(
+        -trajectories.loc["D2", "trajectory_slope"]
+    )
+    assert trajectories.loc["D1", "trajectory_rise"] == pytest.approx(
+        -trajectories.loc["D2", "trajectory_rise"]
+    )
+    assert trajectories.loc["D1", "trajectory_variability"] == pytest.approx(
+        trajectories.loc["D2", "trajectory_variability"]
+    )
+    assert trajectories.loc["D1", "trajectory_peak"] == pytest.approx(
+        trajectories.loc["D2", "trajectory_peak"]
+    )
+
+
+def test_raw_metric_trajectories_preserve_order_without_global_standardization() -> None:
+    ascending = np.arange(1, 10, dtype=float)
+    rows: list[dict[str, float | int | str]] = []
+    for dialogue_id, values in [("D1", ascending), ("D2", ascending[::-1])]:
+        for turn, value in enumerate(values, start=1):
+            rows.append(
+                {
+                    "dialogue_id": dialogue_id,
+                    "speaker_id": "S1",
+                    "turn": turn,
+                    "n_chars": 20,
+                    "surprisal_mean": value,
+                    "surprisal_sent_max": 2 * value,
+                    "sem_dist_partner": value / 10,
+                    "cr_turn_composite": 4.0,
+                    "CR03_avg": 1.5,
+                    "ct_composite": 3.0,
+                }
+            )
+    trajectories = build_metric_trajectories(pd.DataFrame(rows)).set_index("dialogue_id")
+    assert trajectories.loc["D1", "surprisal_mean_slope"] == pytest.approx(1.0)
+    assert trajectories.loc["D2", "surprisal_mean_slope"] == pytest.approx(-1.0)
+    assert trajectories.loc["D1", "surprisal_sent_max_slope"] == pytest.approx(2.0)
+    assert trajectories.loc["D1", "sem_dist_partner_peak"] == pytest.approx(0.9)
+    assert trajectories.loc["D1", "surprisal_mean_variability"] == pytest.approx(
+        trajectories.loc["D2", "surprisal_mean_variability"]
+    )

@@ -43,6 +43,14 @@ class SurprisalConfig:
 
 
 @dataclass
+class EmbeddingConfig:
+    """Parameters for deterministic long-turn semantic embeddings."""
+
+    max_tokens: int = 512
+    long_text_strategy: str = "token_weighted_chunks"
+
+
+@dataclass
 class ColumnConfig:
     """Input CSV column names."""
 
@@ -59,8 +67,13 @@ class RuntimeConfig:
 
     device: str = "auto"
     embedding_batch_size: int = 32
+    language_batch_size: int = 4
+    language_token_budget: int = 3_072
+    language_logit_chunk_size: int = 64
     local_files_only: bool = False
-    context_template: str = "{speaker}: {text}\n"
+    normalize_speakers: bool = True
+    context_template: str = "{speaker}:\n{text}\n"
+    target_prefix_template: str = "{speaker}:\n"
 
 
 @dataclass
@@ -70,6 +83,7 @@ class PipelineConfig:
     seed: int = 42
     models: ModelsConfig = field(default_factory=ModelsConfig)
     surprisal: SurprisalConfig = field(default_factory=SurprisalConfig)
+    embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     mattr_window: int = 10
     columns: ColumnConfig = field(default_factory=ColumnConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
@@ -80,14 +94,28 @@ def _validate(config: PipelineConfig) -> None:
         raise ValueError("mattr_window must be at least 1")
     if config.surprisal.max_context_tokens < 1:
         raise ValueError("surprisal.max_context_tokens must be at least 1")
+    if config.embedding.max_tokens < 3:
+        raise ValueError("embedding.max_tokens must leave room for content and special tokens")
+    if config.embedding.long_text_strategy not in {"token_weighted_chunks", "truncate"}:
+        raise ValueError(
+            "embedding.long_text_strategy must be one of: token_weighted_chunks, truncate"
+        )
     if config.runtime.embedding_batch_size < 1:
         raise ValueError("runtime.embedding_batch_size must be at least 1")
+    if config.runtime.language_batch_size < 1:
+        raise ValueError("runtime.language_batch_size must be at least 1")
+    if config.runtime.language_token_budget < 1:
+        raise ValueError("runtime.language_token_budget must be at least 1")
+    if config.runtime.language_logit_chunk_size < 1:
+        raise ValueError("runtime.language_logit_chunk_size must be at least 1")
     if config.runtime.device not in {"auto", "cpu", "cuda", "mps"}:
         raise ValueError("runtime.device must be one of: auto, cpu, cuda, mps")
     if "{speaker}" not in config.runtime.context_template:
         raise ValueError("runtime.context_template must contain {speaker}")
     if "{text}" not in config.runtime.context_template:
         raise ValueError("runtime.context_template must contain {text}")
+    if "{speaker}" not in config.runtime.target_prefix_template:
+        raise ValueError("runtime.target_prefix_template must contain {speaker}")
     for model in (config.models.language_model, config.models.embedding_model):
         if not model.name or not model.revision:
             raise ValueError("Every model must define both name and immutable revision")

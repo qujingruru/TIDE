@@ -8,8 +8,10 @@ import pytest
 from tide.metrics import (
     aggregate_surprisal,
     cosine_distance,
+    count_non_whitespace_characters,
     lexical_entropy,
     mattr,
+    segment_words,
     sentence_spans,
 )
 
@@ -27,6 +29,20 @@ def test_lexical_entropy_has_known_answer() -> None:
     assert lexical_entropy(["甲", "甲", "乙", "乙"]) == pytest.approx(math.log(2))
     assert lexical_entropy([]) == 0.0
     assert lexical_entropy(["甲"]) == 0.0
+
+
+def test_segment_words_normalizes_case_width_and_discards_symbols() -> None:
+    assert segment_words("ＡＩ AI ai，？！ １２3\n观点") == [  # noqa: RUF001
+        "ai",
+        "ai",
+        "ai",
+        "123",
+        "观点",
+    ]
+
+
+def test_character_count_ignores_formatting_whitespace_after_nfkc() -> None:
+    assert count_non_whitespace_characters("Ａ I\n观点\t！") == 5  # noqa: RUF001
 
 
 def test_mattr_has_known_sliding_window_answer() -> None:

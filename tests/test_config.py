@@ -15,6 +15,9 @@ def test_default_config_pins_models_and_seed() -> None:
     assert len(config.models.language_model.revision) == 40
     assert config.models.embedding_model.name == "BAAI/bge-base-zh-v1.5"
     assert len(config.models.embedding_model.revision) == 40
+    assert config.embedding.max_tokens == 512
+    assert config.embedding.long_text_strategy == "token_weighted_chunks"
+    assert config.runtime.language_logit_chunk_size == 64
 
 
 def test_repository_config_matches_packaged_default() -> None:
@@ -25,10 +28,29 @@ def test_repository_config_matches_packaged_default() -> None:
     )
 
 
+def test_paper_config_freezes_canonical_runtime() -> None:
+    paper_config = Path(__file__).parents[1] / "config" / "paper.yaml"
+    config = load_config(paper_config)
+    assert config.runtime.local_files_only is True
+    assert config.runtime.normalize_speakers is True
+    assert config.runtime.language_batch_size == 4
+    assert config.runtime.language_token_budget == 3072
+    assert config.runtime.language_logit_chunk_size == 64
+    assert config.embedding.long_text_strategy == "token_weighted_chunks"
+
+
 def test_invalid_config_is_rejected(tmp_path: Path) -> None:
     invalid = tmp_path / "invalid.yaml"
     invalid.write_text("mattr_window: 0\n", encoding="utf-8")
     with pytest.raises(ValueError, match="mattr_window"):
+        load_config(invalid)
+
+    invalid.write_text("embedding:\n  long_text_strategy: unknown\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="long_text_strategy"):
+        load_config(invalid)
+
+    invalid.write_text("runtime:\n  language_logit_chunk_size: 0\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="language_logit_chunk_size"):
         load_config(invalid)
 
 

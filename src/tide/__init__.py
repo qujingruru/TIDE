@@ -4,6 +4,7 @@ from tide.config import PipelineConfig, load_config
 from tide.metrics import (
     aggregate_surprisal,
     cosine_distance,
+    count_non_whitespace_characters,
     lexical_entropy,
     mattr,
     sentence_spans,
@@ -16,6 +17,7 @@ __all__ = [
     "compute_metrics_file",
     "compute_metrics_frame",
     "cosine_distance",
+    "count_non_whitespace_characters",
     "lexical_entropy",
     "load_config",
     "mattr",

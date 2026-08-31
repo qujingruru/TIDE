@@ -45,6 +45,7 @@ models = [
 ]
 analysis = [
   "matplotlib>=3.8,<4",
+  "scikit-learn>=1.5,<2",
   "scipy>=1.12,<2",
   "statsmodels>=0.14,<1",
 ]
@@ -58,6 +59,7 @@ dev = [
   "pytest>=8.3,<10",
   "pytest-cov>=6,<8",
   "ruff>=0.9,<1",
+  "scikit-learn>=1.5,<2",
   "scipy>=1.12,<2",
   "statsmodels>=0.14,<1",
 ]
