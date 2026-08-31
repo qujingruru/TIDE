@@ -15,6 +15,8 @@ TIDE accompanies the manuscript *What Can Information-Theoretic Metrics Tell Us 
 - The turn-level creative- and critical-thinking rubrics used in the study.
 - A de-identified numerical table with metrics, adjudicated ratings, and paired
   rater values for reliability analysis, but no dialogue text.
+- Online Table S1 and a machine-readable CSV reporting dialogue-bootstrap
+  human-rating reliability estimates.
 - Reproduction code for the complete validation report and both data-driven paper figures.
 - An additional partial-correlation heatmap for inspecting construct patterns.
 

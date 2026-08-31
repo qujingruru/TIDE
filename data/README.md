@@ -6,6 +6,10 @@ This repository contains no raw participant dialogue.
 - `demo/diagnostic_cases.csv` contains synthetic controlled contrasts for repetition, paraphrase, grounded updating, topic detachment, lexical redistribution, and context removal.
 - `demo/diagnostic_metrics.csv` is the frozen TIDE output for those synthetic cases and supplies the values in paper Figure 2.
 - `paper/deidentified_turn_metrics_ratings.csv` contains only coded dialogue/turn identifiers, numerical metrics, numerical human ratings, dialogue condition, and a within-dialogue pseudonymous speaker identifier. Dialogue text and direct identifiers are absent.
+- `paper/human_rating_criterion_reliability.csv` is the machine-readable version
+  of manuscript Table S1, with dialogue-bootstrap intervals for ICC(2,1) and
+  ICC(2,2). Its readable counterpart is
+  `docs/table_s1_human_rating_reliability.md`.
 - `paper/source_quality_dialogues.csv` lists four pseudonymous dialogue IDs with
   dialogue-level quality flags used for the exclusion sensitivity analysis. It
   contains no dialogue text or direct identifiers. The primary analysis keeps
