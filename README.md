@@ -4,6 +4,13 @@
 
 TIDE accompanies the manuscript *What Can Information-Theoretic Metrics Tell Us about Student Thinking in Dialogue? A Design Framework, Emerging Boundary Evidence, and an Open Pipeline*.
 
+> [!IMPORTANT]
+> **Paper reproduction:** use the immutable
+> [`v0.1.0` release](https://github.com/qujingruru/TIDE/releases/tag/v0.1.0)
+> at commit `a7e65f020b6115f71822bdc25dbff27ad3a8726f`. The default branch may
+> continue to evolve as TIDE is extended; manuscript results should be reproduced from the
+> tagged release.
+
 ## What is included
 
 - A pip-installable Python package and `tide` command-line interface.
